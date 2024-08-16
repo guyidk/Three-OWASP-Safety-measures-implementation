@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #333;
+            color: #fff;
+            padding: 10px 20px;
+        }
+
+        .navbar .welcome-message {
+            font-size: 18px;
+        }
+
+        .navbar .logout {
+            color: #fff;
+            text-decoration: none;
+            background-color: #f44336;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .navbar .logout:hover {
+            background-color: #d32f2f;
+        }
+
+        h3,
+        h4 {
+            color: #333;
+            margin: 20px;
+        }
+
+        .table-container {
+            width: 95%;
+            margin: 0 auto;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            cursor: pointer;
+        }
+
+        th.sort-asc::after {
+            content: ' \2191';
+            /* Up arrow */
+        }
+
+        th.sort-desc::after {
+            content: ' \2193';
+            /* Down arrow */
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .filter-pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+        }
+
+        .pagination button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background-color: #f4f4f4;
+            border-radius: 5px;
+        }
+
+        .pagination button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .pagination #pageInfo {
+            margin-right: 15px;
+            font-weight: bold;
+        }
+
+        #statusFilter {
+            margin-right: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <div class="welcome-message">Welcome Executive</div>
+        <a href="#" id="logout" class="logout">Logout</a>
+    </div>
+
+    <h4>Security Logs</h4>
+
+    <div class="filter-pagination-container">
+        <div>
+            <label for="statusFilter">Filter by Status:</label>
+            <select id="statusFilter">
+                <option value="">All</option>
+                <option value="success">Success</option>
+                <option value="failure">Failure</option>
+            </select>
+        </div>
+        <div class="pagination">
+            <span id="pageInfo">Page 1 of 1</span>
+            <button id="prevPage" disabled>&laquo; Previous</button>
+            <button id="nextPage">Next &raquo;</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th data-column="action">Action</th>
+                    <th data-column="role">Role</th>
+                    <th data-column="email">Email</th>
+                    <th data-column="status">Status</th>
+                    <th data-column="details">Details</th>
+                    <th data-column="timestamp">Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="log-table-body">
+                <!-- Log entries will be populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let logs = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let currentSortColumn = '';
+        let currentSortDirection = '';
+
+        // Function to log out the user
+        function logoutUser() {
+            localStorage.removeItem("token");
+            window.location.href = "login.html";
+        }
+
+        // Fetch logs from the server with optional status filter
+        function fetchLogs() {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            const status = document.getElementById('statusFilter').value;
+            const url = status ? `http://localhost:5000/logs?status=${status}` : 'http://localhost:5000/logs';
+
+            fetch(url, {
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!Array.isArray(data)) {
+                        throw new TypeError('Expected an array of logs');
+                    }
+                    logs = data;
+                    renderTable();
+                    updatePaginationInfo();
+                })
+                .catch(err => console.error('Error fetching logs:', err));
+        }
+
+        // Render logs table
+        function renderTable() {
+            const logTableBody = document.getElementById('log-table-body');
+            logTableBody.innerHTML = '';
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageLogs = logs.slice(startIndex, endIndex);
+
+            pageLogs.forEach(log => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${log.action}</td>
+                    <td>${log.role}</td>
+                    <td>${log.email}</td>
+                    <td>${log.status}</td>
+                    <td>${log.details || ''}</td>
+                    <td>${new Date(log.timestamp).toLocaleString()}</td>
+                `;
+                logTableBody.appendChild(row);
+            });
+        }
+
+        // Update pagination info and control buttons
+        function updatePaginationInfo() {
+            document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${Math.ceil(logs.length / itemsPerPage)}`;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage === Math.ceil(logs.length / itemsPerPage);
+        }
+
+        // Event listener for pagination buttons
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+                updatePaginationInfo();
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', () => {
+            if (currentPage * itemsPerPage < logs.length) {
+                currentPage++;
+                renderTable();
+                updatePaginationInfo();
+            }
+        });
+
+        // Sort table by column
+        function sortTable(column) {
+            if (currentSortColumn === column) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = column;
+                currentSortDirection = 'asc';
+            }
+
+            logs.sort((a, b) => {
+                let aValue = a[column];
+                let bValue = b[column];
+
+                if (column === 'timestamp') {
+                    aValue = new Date(aValue);
+                    bValue = new Date(bValue);
+                }
+
+                if (aValue < bValue) {
+                    return currentSortDirection === 'asc' ? -1 : 1;
+                } else if (aValue > bValue) {
+                    return currentSortDirection === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+
+            renderTable();
+            updateHeaders();
+        }
+
+        // Update headers to show sort direction
+        function updateHeaders() {
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.column === currentSortColumn) {
+                    th.classList.add(currentSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        // Add event listeners to table headers
+        document.querySelectorAll('th[data-column]').forEach(th => {
+            th.addEventListener('click', () => sortTable(th.dataset.column));
+        });
+
+        // Add event listener to the status filter dropdown
+        document.getElementById('statusFilter').addEventListener('change', fetchLogs);
+
+        // Initial fetch of logs
+        fetchLogs();
+
+        // Refresh the logs every 3 seconds
+        setInterval(fetchLogs, 3000);
+
+        // Set up the logout event
+        const logout = document.getElementById("logout");
+        logout.addEventListener("click", logoutUser);
+    </script>
+</body>
+
+</html>

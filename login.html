@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        form {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #333;
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #04AA6D;
+            outline: none;
+        }
+
+        .recaptcha-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background-color: #04AA6D;
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #039a5e;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .footer span {
+            color: #777;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .footer a {
+            color: #04AA6D;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 500px) {
+            form {
+                padding: 20px;
+                width: 100%;
+            }
+
+            input,
+            select {
+                padding: 10px;
+            }
+
+            button {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+    <!-- Load the reCAPTCHA API -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+
+<body>
+    <form id="loginForm">
+        <div class="container">
+            <!-- Header for the login form -->
+            <h2>Login</h2>
+            <!-- Label and input field for the username -->
+            <label for="uname"><b>Name</b></label>
+            <input id="uname" type="text" placeholder="Enter Name" name="uname" required>
+
+            <!-- Label and input field for the password -->
+            <label for="psw"><b>Password</b></label>
+            <input id="psw" type="password" placeholder="Enter Password" name="psw" required>
+
+            <!-- Label and select dropdown for the role -->
+            <label for="role"><b>Role</b></label>
+            <select name="role" id="role">
+                <option value="customer">Customer</option>
+                <option value="management">Management</option>
+                <option value="technical">Technical</option>
+                <option value="executive">Executive</option>
+            </select>
+
+            <!-- Label and input field for the 2FA token -->
+            <label for="token"><b>2FA Token</b></label>
+            <input id="token" type="text" placeholder="Enter 2FA Token" name="token" required>
+
+             <!-- Container for the reCAPTCHA widget -->
+            <div class="recaptcha-container">
+                <div class="g-recaptcha" data-sitekey="PlaceHolder"></div>
+            </div>
+
+            <!-- Submit button -->
+            <button type="submit">Login</button>
+        </div>
+        <div class="footer">
+            <!-- Link to the registration page -->
+            <span class="psw">Don't have an account? <a href="register.html">Sign up</a></span>
+            <!-- Link to the forgot password page -->
+            <span class="psw">Forgot Password? <a href="forgot_password.html">Reset</a></span>
+        </div>
+    </form>
+
+    <script>
+        // Function to handle the form submission
+        function processForm(event) {
+            // Prevents the default form submission behavior
+            event.preventDefault();
+
+            // Get values from the input fields
+            const uname = document.getElementById("uname").value;
+            const psw = document.getElementById("psw").value;
+            const role = document.getElementById("role").value;
+            const recaptchaToken = grecaptcha.getResponse();
+            const twoFAToken = document.getElementById("token").value;
+
+            // Check if reCAPTCHA is completed
+            if (!recaptchaToken) {
+                alert("Please complete the reCAPTCHA.");
+                return;
+            }   
+
+            // Create a JSON string with the form data
+            var data = JSON.stringify({
+                "name": uname,
+                "password": psw,
+                "recaptchaToken": recaptchaToken,
+                "twoFAToken": twoFAToken
+            });
+
+            // Create a new XMLHttpRequest object
+            var xhr = new XMLHttpRequest();
+            xhr.addEventListener("readystatechange", function () {
+                // Check if the request is complete
+                if (this.readyState === 4) {
+                    // Parse the response JSON
+                    var response = JSON.parse(this.responseText);
+                    // Handle the response
+                    if (this.status === 200) {
+                        // Store the token in local storage and redirect to the appropriate page
+                        localStorage.setItem("token", response.token);
+                        window.location.href = response.role + ".html";
+                    } else {
+                        // Display an error message and reset the reCAPTCHA
+                        alert(response.message);
+                        grecaptcha.reset();
+                    }
+                }
+            });
+            // Open a POST request to the server
+            xhr.open("POST", "http://localhost:5000/login-" + role);
+            // Set the request header to indicate JSON content
+            xhr.setRequestHeader("Content-type", "application/json");
+            // Send the request with the JSON data
+            xhr.send(data);
+        }
+
+        // Add an event listener to handle the form submission
+        document.getElementById("loginForm").addEventListener("submit", processForm);
+    </script>
+</body>
+
+</html>

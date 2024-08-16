@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Page</title>
+</head>
+<body>
+    <h3>Welcome Technical</h3>
+    <a href='#' id="logout">Logout</a> <!-- Logout link with an ID for the JavaScript to attach an event listener -->
+</body>
+<script>
+
+    // Function to log out the user
+    function logoutUser(event){
+        localStorage.removeItem("token");// Remove the token from local storage
+        window.location.href = "login.html"; // Redirect to the login page
+    }
+
+    // Retrieve the token from local storage
+    const token = localStorage.getItem("token");
+
+    // If no token is found, redirect to the login page
+    if(token === null){
+        window.location.href = "login.html";
+    }else{
+        var data = "";
+        var xhr = new XMLHttpRequest();// Create a new XMLHttpRequest object
+        xhr.addEventListener("readystatechange", function () {
+            if (this.readyState === 4){// When the request is complete
+                if (this.status === 200) { // If the response status is 200 (OK)
+                    alert("Welcom Technical") // Show a welcome message
+                } else {
+                    window.location.href = "login.html"; // Redirect to the login page if not OK
+                }
+            }
+        });
+
+        // Open a GET request to the protected route
+        xhr.open("GET", "http://localhost:5000/technical-protected");
+
+        // Set the Authorization header with the token
+        xhr.setRequestHeader("Authorization", "Bearer " + token);
+        xhr.send(data);
+
+        // Get the logout link element and attach an event listener
+        const logout = document.getElementById("logout");
+        logout.addEventListener("click", logoutUser);
+
+    }
+
+</script>
+</html>
